@@ -1,20 +1,23 @@
 import type { StaticFlag } from '@ferret/types';
 import type { AnalysisRule } from './types.js';
 import { evalUsageRule } from './eval-usage.js';
-import { networkCallsRule } from './network-calls.js';
-import { envAccessRule } from './env-access.js';
-import { childProcessRule } from './child-process.js';
-import { base64StringsRule } from './base64-strings.js';
-import { fsWritesRule } from './fs-writes.js';
 import { compositeRule } from './composite.js';
 
+// Only keep rules that have high signal-to-noise ratio:
+// - eval-usage: eval(), Function(), module._compile(), vm.runIn*()
+// - composite: multi-signal attack patterns (credential exfil, env exfil, etc.)
+//
+// Removed standalone rules (too many false positives on their own):
+// - network-calls: fetch() is a standard global, used everywhere
+// - child-process: build tools legitimately spawn processes
+// - fs-writes: many packages write files
+// - env-access: most packages read some env vars
+// - base64-strings: hashes, encoded assets are common
+//
+// These signals are still detected by the composite rule when they
+// appear in suspicious COMBINATIONS (e.g., credential read + network).
 const ALL_RULES: AnalysisRule[] = [
   evalUsageRule,
-  networkCallsRule,
-  envAccessRule,
-  childProcessRule,
-  base64StringsRule,
-  fsWritesRule,
   compositeRule,
 ];
 

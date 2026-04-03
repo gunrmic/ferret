@@ -2,6 +2,22 @@ import type { StaticFlag } from '@ferret/types';
 
 const DANGEROUS_SCRIPTS = ['preinstall', 'install', 'postinstall'];
 
+// Known safe install script commands (native addon build tools)
+const SAFE_SCRIPT_PATTERNS = [
+  /^node-gyp\s+rebuild/,
+  /^node-gyp-build/,
+  /^prebuild-install/,
+  /^node-pre-gyp\s/,
+  /^cmake-js\s/,
+  /^napi\s+build/,
+  /^patch-package/,
+  /^husky\s/,
+  /^ngcc/,
+  /^opencollective\s/,
+  /^is-ci\s/,
+  /^node\s+-e\s/,
+];
+
 /**
  * Check if package.json has new lifecycle scripts.
  * New preinstall/postinstall scripts are the #1 attack vector
@@ -36,7 +52,7 @@ export function checkLifecycleScripts(
     const newVal = newScripts[script];
     const oldVal = oldScripts[script];
 
-    if (newVal && newVal !== oldVal) {
+    if (newVal && newVal !== oldVal && !SAFE_SCRIPT_PATTERNS.some((p) => p.test(newVal))) {
       const severity = oldVal ? 'high' : 'critical';
       flags.push({
         rule: 'child-process',
