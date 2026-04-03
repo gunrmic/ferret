@@ -57,6 +57,47 @@ export class RegistryClient {
   }
 
   /**
+   * Get weekly downloads for multiple packages in one request.
+   * npm API accepts comma-separated package names (max ~128 per request).
+   */
+  async getBulkDownloads(
+    packageNames: string[],
+  ): Promise<Map<string, number>> {
+    const result = new Map<string, number>();
+    // Process in chunks of 100 to stay within URL length limits
+    const chunkSize = 100;
+
+    for (let i = 0; i < packageNames.length; i += chunkSize) {
+      const chunk = packageNames.slice(i, i + chunkSize);
+      const names = chunk.map(encodeURIComponent).join(',');
+      const url = `https://api.npmjs.org/downloads/point/last-week/${names}`;
+
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+        if (!res.ok) {
+          logger.warn({ status: res.status }, 'Failed to get bulk download stats');
+          continue;
+        }
+
+        const data = (await res.json()) as Record<
+          string,
+          { downloads: number } | null
+        >;
+
+        for (const [name, info] of Object.entries(data)) {
+          if (info?.downloads) {
+            result.set(name, info.downloads);
+          }
+        }
+      } catch (err) {
+        logger.warn({ err }, 'Bulk downloads request failed');
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * Fetch a package's packument (metadata) with conditional request support.
    * Returns null if the package hasn't changed (304 Not Modified).
    */

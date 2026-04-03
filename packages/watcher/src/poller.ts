@@ -3,12 +3,10 @@ import { addScanJob, type Queue } from '@ferret/queue';
 import { prisma } from '@ferret/db';
 import pLimit from 'p-limit';
 import { RegistryClient } from './registry-client.js';
-import { isPopular } from './popularity-filter.js';
+import { SEED_PACKAGES } from './seed-packages.js';
 import { logger } from './logger.js';
 import type { WatcherConfig } from './config.js';
 
-const SEARCH_PAGE_SIZE = 250;
-const MAX_PACKAGES = 1000;
 const REGISTRY_CONCURRENCY = 10;
 
 export class Poller {
@@ -54,49 +52,27 @@ export class Poller {
   }
 
   private async seedPackages(): Promise<void> {
-    const packages: Array<{ name: string; downloads: number }> = [];
+    // Get download counts for all seed packages in bulk
+    const downloads = await this.client.getBulkDownloads(SEED_PACKAGES);
 
-    // Paginate through npm search results
-    for (let from = 0; from < MAX_PACKAGES; from += SEARCH_PAGE_SIZE) {
-      const results = await this.client.searchPopularPackages(from, SEARCH_PAGE_SIZE);
-      if (results.length === 0) break;
+    logger.info(
+      { seedList: SEED_PACKAGES.length, withDownloads: downloads.size },
+      'Fetched download counts',
+    );
 
-      // Check downloads in parallel
-      const checked = await Promise.all(
-        results.map((pkg) =>
-          this.limit(async () => {
-            const { popular, downloads } = await isPopular(
-              this.client,
-              pkg.name,
-              this.config.MIN_WEEKLY_DOWNLOADS,
-            );
-            return { name: pkg.name, popular, downloads };
-          }),
-        ),
-      );
-
-      for (const pkg of checked) {
-        if (pkg.popular) {
-          packages.push({ name: pkg.name, downloads: pkg.downloads });
-        }
+    let seeded = 0;
+    for (const [name, count] of downloads) {
+      if (count >= this.config.MIN_WEEKLY_DOWNLOADS) {
+        await prisma.package.upsert({
+          where: { name },
+          create: { name, weeklyDownloads: count },
+          update: { weeklyDownloads: count },
+        });
+        seeded++;
       }
-
-      logger.info(
-        { from, fetched: results.length, qualifiedTotal: packages.length },
-        'Seeding progress',
-      );
     }
 
-    // Upsert all packages
-    for (const pkg of packages) {
-      await prisma.package.upsert({
-        where: { name: pkg.name },
-        create: { name: pkg.name, weeklyDownloads: pkg.downloads },
-        update: { weeklyDownloads: pkg.downloads },
-      });
-    }
-
-    logger.info({ count: packages.length }, 'Seeding complete');
+    logger.info({ count: seeded }, 'Seeding complete');
   }
 
   private async poll(): Promise<void> {
