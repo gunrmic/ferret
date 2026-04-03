@@ -3,8 +3,14 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
   },
   "scripts": {
     "build": "tsc"
