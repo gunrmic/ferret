@@ -57,19 +57,23 @@ export class RegistryClient {
   }
 
   /**
-   * Get weekly downloads for multiple packages in one request.
-   * npm API accepts comma-separated package names (max ~128 per request).
+   * Get weekly downloads for multiple packages.
+   * Uses bulk API for unscoped packages, individual requests for scoped.
    */
   async getBulkDownloads(
     packageNames: string[],
   ): Promise<Map<string, number>> {
     const result = new Map<string, number>();
-    // Process in chunks of 100 to stay within URL length limits
-    const chunkSize = 100;
 
-    for (let i = 0; i < packageNames.length; i += chunkSize) {
-      const chunk = packageNames.slice(i, i + chunkSize);
-      const names = chunk.map(encodeURIComponent).join(',');
+    // Split scoped vs unscoped — bulk API doesn't support scoped packages
+    const unscoped = packageNames.filter((n) => !n.startsWith('@'));
+    const scoped = packageNames.filter((n) => n.startsWith('@'));
+
+    // Bulk fetch unscoped in chunks of 100
+    const chunkSize = 100;
+    for (let i = 0; i < unscoped.length; i += chunkSize) {
+      const chunk = unscoped.slice(i, i + chunkSize);
+      const names = chunk.join(',');
       const url = `https://api.npmjs.org/downloads/point/last-week/${names}`;
 
       try {
@@ -91,6 +95,14 @@ export class RegistryClient {
         }
       } catch (err) {
         logger.warn({ err }, 'Bulk downloads request failed');
+      }
+    }
+
+    // Fetch scoped packages individually
+    for (const name of scoped) {
+      const downloads = await this.getWeeklyDownloads(name);
+      if (downloads > 0) {
+        result.set(name, downloads);
       }
     }
 
