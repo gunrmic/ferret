@@ -1,7 +1,7 @@
 import type { StaticFlag } from '@ferret/types';
 import type { AnalysisRule } from './types.js';
 import { parseFile, getSourceLine } from './parse-utils.js';
-import traverse from '@babel/traverse';
+import traverse from './traverse.js';
 
 const FS_MODULES = new Set(['fs', 'node:fs', 'fs/promises', 'node:fs/promises']);
 const FS_WRITE_METHODS = new Set([

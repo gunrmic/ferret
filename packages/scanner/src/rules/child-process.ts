@@ -1,7 +1,7 @@
 import type { StaticFlag } from '@ferret/types';
 import type { AnalysisRule } from './types.js';
 import { parseFile, getSourceLine } from './parse-utils.js';
-import traverse from '@babel/traverse';
+import traverse from './traverse.js';
 
 const CP_MODULES = new Set(['child_process', 'node:child_process']);
 const CP_METHODS = new Set([

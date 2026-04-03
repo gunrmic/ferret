@@ -1,7 +1,7 @@
 import type { StaticFlag } from '@ferret/types';
 import type { AnalysisRule } from './types.js';
 import { parseFile, getSourceLine } from './parse-utils.js';
-import traverse from '@babel/traverse';
+import traverse from './traverse.js';
 
 const NETWORK_MODULES = new Set([
   'http', 'https', 'node:http', 'node:https',

@@ -1,7 +1,7 @@
 import type { StaticFlag } from '@ferret/types';
 import type { AnalysisRule } from './types.js';
 import { parseFile, getSourceLine } from './parse-utils.js';
-import traverse from '@babel/traverse';
+import traverse from './traverse.js';
 
 const BASE64_REGEX = /^[A-Za-z0-9+/]{40,}={0,2}$/;
 
