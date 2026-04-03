@@ -65,9 +65,13 @@ async function walkDir(dir: string, base?: string): Promise<string[]> {
       files.push(...(await walkDir(fullPath, root)));
     } else if (entry.isFile()) {
       const relPath = relative(root, fullPath);
-      const ext = '.' + entry.name.split('.').pop();
-      if (!ANALYZABLE_EXTENSIONS.has(ext)) continue;
-      if (isMinifiedOrBundled(entry.name)) continue;
+      // Always include package.json
+      const isPackageJson = entry.name === 'package.json';
+      if (!isPackageJson) {
+        const ext = '.' + entry.name.split('.').pop();
+        if (!ANALYZABLE_EXTENSIONS.has(ext)) continue;
+        if (isMinifiedOrBundled(entry.name)) continue;
+      }
 
       const fileStat = await stat(fullPath);
       if (fileStat.size > MAX_FILE_SIZE) continue;

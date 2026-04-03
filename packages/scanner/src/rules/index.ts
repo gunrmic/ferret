@@ -6,6 +6,7 @@ import { envAccessRule } from './env-access.js';
 import { childProcessRule } from './child-process.js';
 import { base64StringsRule } from './base64-strings.js';
 import { fsWritesRule } from './fs-writes.js';
+import { compositeRule } from './composite.js';
 
 const ALL_RULES: AnalysisRule[] = [
   evalUsageRule,
@@ -14,6 +15,7 @@ const ALL_RULES: AnalysisRule[] = [
   childProcessRule,
   base64StringsRule,
   fsWritesRule,
+  compositeRule,
 ];
 
 /**

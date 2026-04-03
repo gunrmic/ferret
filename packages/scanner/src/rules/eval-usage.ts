@@ -39,12 +39,47 @@ export const evalUsageRule: AnalysisRule = {
             description: 'Function() constructor call detected',
           });
         }
+
+        // module._compile(...) — used in event-stream attack
+        if (
+          callee.type === 'MemberExpression' &&
+          callee.object.type === 'Identifier' &&
+          callee.object.name === 'module' &&
+          callee.property.type === 'Identifier' &&
+          callee.property.name === '_compile'
+        ) {
+          flags.push({
+            rule: 'eval-usage',
+            severity: 'critical',
+            filename,
+            line: callee.loc?.start.line ?? 0,
+            snippet: getSourceLine(code, callee.loc?.start.line),
+            description: 'module._compile() — dynamic code execution (event-stream attack pattern)',
+          });
+        }
+
+        // vm.runInNewContext / vm.runInThisContext
+        if (
+          callee.type === 'MemberExpression' &&
+          callee.object.type === 'Identifier' &&
+          callee.object.name === 'vm' &&
+          callee.property.type === 'Identifier' &&
+          callee.property.name.startsWith('runIn')
+        ) {
+          flags.push({
+            rule: 'eval-usage',
+            severity: 'critical',
+            filename,
+            line: callee.loc?.start.line ?? 0,
+            snippet: getSourceLine(code, callee.loc?.start.line),
+            description: `vm.${callee.property.name}() — dynamic code execution`,
+          });
+        }
       },
 
       NewExpression(path) {
         const { callee } = path.node;
 
-        // new Function(...)
         if (callee.type === 'Identifier' && callee.name === 'Function') {
           flags.push({
             rule: 'eval-usage',
