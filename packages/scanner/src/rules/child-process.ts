@@ -53,35 +53,30 @@ export const childProcessRule: AnalysisRule = {
           });
         }
 
-        // exec(...), spawn(...), etc. as member expressions
+        // cp.exec(...), cp.spawn(...), etc. — only flag if the object
+        // looks like a child_process import (not regex.exec, cursor.exec, etc.)
         if (
           callee.type === 'MemberExpression' &&
           callee.property.type === 'Identifier' &&
           CP_METHODS.has(callee.property.name)
         ) {
-          flags.push({
-            rule: 'child-process',
-            severity: 'critical',
-            filename,
-            line: callee.loc?.start.line ?? 0,
-            snippet: getSourceLine(code, callee.loc?.start.line),
-            description: `Call to ${callee.property.name}()`,
-          });
-        }
+          // Only flag if the object is NOT a common false-positive pattern
+          const objName =
+            callee.object.type === 'Identifier' ? callee.object.name : '';
+          const isFalsePositive =
+            callee.property.name === 'exec' &&
+            !['cp', 'child_process', 'childProcess', 'proc'].includes(objName);
 
-        // Direct calls like exec(...) after destructured import
-        if (
-          callee.type === 'Identifier' &&
-          CP_METHODS.has(callee.name)
-        ) {
-          flags.push({
-            rule: 'child-process',
-            severity: 'high',
-            filename,
-            line: callee.loc?.start.line ?? 0,
-            snippet: getSourceLine(code, callee.loc?.start.line),
-            description: `Direct call to ${callee.name}() (possible child_process)`,
-          });
+          if (!isFalsePositive) {
+            flags.push({
+              rule: 'child-process',
+              severity: 'critical',
+              filename,
+              line: callee.loc?.start.line ?? 0,
+              snippet: getSourceLine(code, callee.loc?.start.line),
+              description: `Call to ${callee.property.name}()`,
+            });
+          }
         }
       },
     });

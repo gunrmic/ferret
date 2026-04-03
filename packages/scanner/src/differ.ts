@@ -9,6 +9,21 @@ const ANALYZABLE_EXTENSIONS = new Set([
 
 const MAX_FILE_SIZE = 1_000_000; // 1MB
 
+function isMinifiedOrBundled(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return (
+    lower.endsWith('.min.js') ||
+    lower.endsWith('.min.mjs') ||
+    lower.endsWith('.min.cjs') ||
+    lower.endsWith('.bundle.js') ||
+    lower.endsWith('.umd.js') ||
+    lower.endsWith('.umd.min.js') ||
+    lower.endsWith('.prod.js') ||
+    lower.endsWith('.production.js') ||
+    lower.endsWith('.browser.js')
+  );
+}
+
 export interface ModifiedFile {
   path: string;
   oldContent: string;
@@ -29,7 +44,7 @@ async function walkDir(dir: string, base?: string): Promise<string[]> {
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
 
-    if (entry.name === 'node_modules') continue;
+    if (entry.name === 'node_modules' || entry.name === 'dist') continue;
 
     if (entry.isDirectory()) {
       files.push(...(await walkDir(fullPath, root)));
@@ -37,6 +52,7 @@ async function walkDir(dir: string, base?: string): Promise<string[]> {
       const relPath = relative(root, fullPath);
       const ext = '.' + entry.name.split('.').pop();
       if (!ANALYZABLE_EXTENSIONS.has(ext)) continue;
+      if (isMinifiedOrBundled(entry.name)) continue;
 
       const fileStat = await stat(fullPath);
       if (fileStat.size > MAX_FILE_SIZE) continue;
