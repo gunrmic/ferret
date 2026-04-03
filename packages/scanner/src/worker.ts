@@ -41,12 +41,11 @@ function createProcessor(alertQueue: Queue<AlertJobPayload>) {
         'Diff complete',
       );
 
-      // Static analysis — skip for initial scans (no previous version to diff against)
-      const isInitialScan = !previousVersion;
-      const flags = isInitialScan ? [] : analyzeChanges(diff);
-      const riskScore = isInitialScan ? 0 : calculateRiskScore(flags);
+      // Static analysis
+      const flags = analyzeChanges(diff);
+      const riskScore = calculateRiskScore(flags);
 
-      log.info({ riskScore, flagCount: flags.length, isInitialScan }, 'Analysis complete');
+      log.info({ riskScore, flagCount: flags.length }, 'Analysis complete');
 
       // Store result
       const scan = await prisma.scan.create({
@@ -62,8 +61,8 @@ function createProcessor(alertQueue: Queue<AlertJobPayload>) {
 
       log.info({ riskScore, scanId: scan.id }, 'Scan stored');
 
-      // Enqueue alert if high risk (never on initial scans)
-      if (!isInitialScan && riskScore > ALERT_RISK_THRESHOLD) {
+      // Enqueue alert if high risk
+      if (riskScore > ALERT_RISK_THRESHOLD) {
         await addAlertJob(alertQueue, {
           scanId: scan.id,
           packageName,

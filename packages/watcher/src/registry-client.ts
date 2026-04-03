@@ -7,6 +7,7 @@ interface SearchResult {
 
 interface PackumentResult {
   latestVersion: string;
+  previousVersion: string | null;
   etag: string | null;
 }
 
@@ -142,6 +143,7 @@ export class RegistryClient {
 
     const data = (await res.json()) as {
       'dist-tags': { latest?: string };
+      time?: Record<string, string>;
     };
 
     const latestVersion = data['dist-tags'].latest;
@@ -150,8 +152,25 @@ export class RegistryClient {
       return null;
     }
 
+    // Find the previous version by looking at the time field
+    let previousVersion: string | null = null;
+    if (data.time) {
+      const versions = Object.keys(data.time)
+        .filter((k) => k !== 'created' && k !== 'modified')
+        .sort((a, b) => {
+          const ta = new Date(data.time![a]).getTime();
+          const tb = new Date(data.time![b]).getTime();
+          return ta - tb;
+        });
+      const latestIdx = versions.indexOf(latestVersion);
+      if (latestIdx > 0) {
+        previousVersion = versions[latestIdx - 1];
+      }
+    }
+
     return {
       latestVersion,
+      previousVersion,
       etag: res.headers.get('etag'),
     };
   }

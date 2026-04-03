@@ -92,7 +92,7 @@ export class Poller {
               return;
             }
 
-            const { latestVersion, etag } = result;
+            const { latestVersion, previousVersion, etag } = result;
 
             // Update etag and lastCheckedAt
             await prisma.package.update({
@@ -105,15 +105,19 @@ export class Poller {
 
             // Check if this is a new version
             if (latestVersion !== pkg.lastVersion) {
+              // Always use npm's version history — never trust our DB
+              // since we may have been down and missed intermediate releases
+              const prevVersion = previousVersion;
+
               logger.info(
-                { packageName: pkg.name, oldVersion: pkg.lastVersion, newVersion: latestVersion },
+                { packageName: pkg.name, oldVersion: prevVersion, newVersion: latestVersion },
                 'New version detected',
               );
 
               await addScanJob(this.queue, {
                 packageName: pkg.name,
                 newVersion: latestVersion,
-                previousVersion: pkg.lastVersion,
+                previousVersion: prevVersion,
                 registryUrl: this.config.NPM_REGISTRY_URL,
                 weeklyDownloads: pkg.weeklyDownloads ?? 0,
                 detectedAt: new Date().toISOString(),
