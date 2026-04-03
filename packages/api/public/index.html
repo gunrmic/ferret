@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ferret Watch — npm Supply Chain Security Monitor</title>
+  <meta name="description" content="Real-time npm supply chain security monitor. Watches for suspicious code in popular package updates before you install them.">
+  <link rel="icon" href="/logo.png" type="image/png">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0e17;
+      --surface: #111827;
+      --surface-2: #1a2234;
+      --border: #1e293b;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --accent: #0ea5e9;
+      --accent-dim: #0284c7;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --orange: #f97316;
+      --red: #ef4444;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+
+    /* Header */
+    header {
+      text-align: center;
+      padding: 48px 0 32px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    header img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+      border-radius: 16px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 12px 0 4px;
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      color: var(--text-dim);
+      font-size: 15px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    header .links {
+      margin-top: 16px;
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    header .links a {
+      color: var(--accent);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    header .links a:hover { text-decoration: underline; }
+
+    /* Stats */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding: 24px 0;
+    }
+
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat .value {
+      font-size: 28px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat .label {
+      font-size: 12px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+
+    /* Feed */
+    .feed-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 0 12px;
+    }
+
+    .feed-header h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .feed-header .live {
+      font-size: 12px;
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .feed-header .live::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .scan-list { list-style: none; }
+
+    .scan-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 8px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: start;
+      transition: border-color 0.15s;
+    }
+
+    .scan-item:hover { border-color: var(--accent-dim); }
+
+    .scan-item a {
+      text-decoration: none;
+      color: inherit;
+      display: contents;
+    }
+
+    .scan-pkg {
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .scan-version {
+      color: var(--text-dim);
+      font-weight: 400;
+    }
+
+    .scan-meta {
+      display: flex;
+      gap: 12px;
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .scan-flags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .flag-tag {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+
+    .score-badge {
+      font-size: 14px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 8px;
+      min-width: 48px;
+      text-align: center;
+      align-self: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .score-low { background: rgba(34,197,94,0.12); color: var(--green); }
+    .score-med { background: rgba(234,179,8,0.12); color: var(--yellow); }
+    .score-high { background: rgba(249,115,22,0.12); color: var(--orange); }
+    .score-crit { background: rgba(239,68,68,0.15); color: var(--red); }
+
+    .empty {
+      text-align: center;
+      padding: 48px 0;
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+
+    .load-more {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-dim);
+      font-size: 13px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .load-more:hover { border-color: var(--accent-dim); color: var(--text); }
+
+    footer {
+      text-align: center;
+      padding: 24px 0 32px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 520px) {
+      .stats { grid-template-columns: 1fr; }
+      .stat .value { font-size: 22px; }
+      header { padding: 32px 0 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <img src="/logo.png" alt="Ferret Watch logo" width="80" height="80">
+      <h1>Ferret Watch</h1>
+      <p>Real-time npm supply chain security monitor. Watches popular packages for suspicious code changes before you install them.</p>
+      <div class="links">
+        <a href="https://x.com/theferretwatch" target="_blank">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          @theferretwatch
+        </a>
+        <a href="https://github.com/gunrmic/ferret" target="_blank">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </header>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="value" id="stat-packages">-</div>
+        <div class="label">Packages Monitored</div>
+      </div>
+      <div class="stat">
+        <div class="value" id="stat-scans">-</div>
+        <div class="label">Scans Today</div>
+      </div>
+      <div class="stat">
+        <div class="value" id="stat-alerts">-</div>
+        <div class="label">Alerts Triggered</div>
+      </div>
+    </div>
+
+    <div class="feed-header">
+      <h2>Recent Scans</h2>
+      <span class="live">Live</span>
+    </div>
+
+    <ul class="scan-list" id="scan-list"></ul>
+    <button class="load-more" id="load-more" style="display:none">Load more</button>
+
+    <footer>
+      Ferret Watch &mdash; Catching supply chain threats before they bite.
+      <br>
+      <a href="/feed">API</a> &middot; <a href="https://github.com/gunrmic/ferret">Source</a>
+    </footer>
+  </div>
+
+  <script>
+    const API = '';
+    let nextCursor = null;
+
+    function scoreClass(s) {
+      if (s <= 20) return 'score-low';
+      if (s <= 50) return 'score-med';
+      if (s <= 70) return 'score-high';
+      return 'score-crit';
+    }
+
+    function timeAgo(d) {
+      const s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
+      if (s < 60) return `${s}s ago`;
+      if (s < 3600) return `${Math.floor(s/60)}m ago`;
+      if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+      return `${Math.floor(s/86400)}d ago`;
+    }
+
+    function uniqueFlags(flags) {
+      if (!Array.isArray(flags)) return [];
+      return [...new Set(flags.map(f => f.rule))];
+    }
+
+    function renderScan(scan) {
+      const score = scan.riskScore ?? 0;
+      const flags = uniqueFlags(scan.staticFlags);
+      const li = document.createElement('li');
+      li.className = 'scan-item';
+      li.innerHTML = `
+        <a href="/scan/${encodeURIComponent(scan.packageName)}/${scan.version}">
+          <div>
+            <div class="scan-pkg">${scan.packageName} <span class="scan-version">v${scan.version}</span></div>
+            <div class="scan-meta">
+              <span>${timeAgo(scan.scannedAt)}</span>
+              ${scan.previousVersion ? `<span>from v${scan.previousVersion}</span>` : '<span>initial scan</span>'}
+              ${scan.alerted ? '<span style="color:var(--red)">alerted</span>' : ''}
+            </div>
+            ${flags.length ? `<div class="scan-flags">${flags.map(f => `<span class="flag-tag">${f}</span>`).join('')}</div>` : ''}
+          </div>
+          <div class="score-badge ${scoreClass(score)}">${score}</div>
+        </a>
+      `;
+      return li;
+    }
+
+    async function loadStats() {
+      try {
+        const r = await fetch(`${API}/stats`);
+        const d = await r.json();
+        document.getElementById('stat-packages').textContent = d.totalPackages.toLocaleString();
+        document.getElementById('stat-scans').textContent = d.scansToday.toLocaleString();
+        document.getElementById('stat-alerts').textContent = d.totalAlerts.toLocaleString();
+      } catch {}
+    }
+
+    async function loadFeed(append) {
+      try {
+        const url = nextCursor ? `${API}/feed?cursor=${nextCursor}&limit=20` : `${API}/feed?limit=20`;
+        const r = await fetch(url);
+        const d = await r.json();
+        const list = document.getElementById('scan-list');
+
+        if (!append) list.innerHTML = '';
+
+        if (d.scans.length === 0 && !append) {
+          list.innerHTML = '<li class="empty">No scans yet. The watcher is seeding packages&hellip;</li>';
+          return;
+        }
+
+        d.scans.forEach(s => list.appendChild(renderScan(s)));
+        nextCursor = d.nextCursor;
+        document.getElementById('load-more').style.display = nextCursor ? 'block' : 'none';
+      } catch {}
+    }
+
+    document.getElementById('load-more').addEventListener('click', () => loadFeed(true));
+
+    loadStats();
+    loadFeed(false);
+
+    // Refresh every 30s
+    setInterval(() => { loadStats(); }, 30000);
+    setInterval(() => { nextCursor = null; loadFeed(false); }, 60000);
+  </script>
+</body>
+</html>

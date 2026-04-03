@@ -12,8 +12,11 @@ process.on('unhandledRejection', (err) => {
 
 console.log('API starting...');
 
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import fastifyStatic from '@fastify/static';
 import { prisma } from '@ferret/db';
 import { loadApiConfig } from './config.js';
 import { feedRoutes } from './routes/feed.js';
@@ -27,6 +30,12 @@ const config = loadApiConfig();
 const app = Fastify({ logger: { level: config.LOG_LEVEL } });
 
 await app.register(cors, { origin: config.CORS_ORIGIN });
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+await app.register(fastifyStatic, {
+  root: join(__dirname, '..', 'public'),
+  prefix: '/',
+});
 
 app.get('/healthz', async () => ({ ok: true, service: 'api' }));
 
