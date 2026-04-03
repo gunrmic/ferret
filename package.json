@@ -5,6 +5,8 @@
   "scripts": {
     "dev:watcher": "pnpm --filter @ferret/watcher dev",
     "dev:scanner": "pnpm --filter @ferret/scanner dev",
+    "dev:api": "pnpm --filter @ferret/api dev",
+    "dev:alerter": "pnpm --filter @ferret/alerter dev",
     "build": "pnpm -r build",
     "db:migrate": "pnpm --filter @ferret/db exec prisma migrate dev",
     "db:studio": "pnpm --filter @ferret/db exec prisma studio",

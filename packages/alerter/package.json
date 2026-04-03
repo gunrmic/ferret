@@ -1,0 +1,21 @@
+{
+  "name": "@ferret/alerter",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "twitter-api-v2": "^1.17.0",
+    "bullmq": "^5.0.0",
+    "ioredis": "^5.0.0",
+    "pino": "^9.0.0",
+    "zod": "^3.23.0",
+    "@ferret/db": "workspace:*",
+    "@ferret/queue": "workspace:*",
+    "@ferret/types": "workspace:*"
+  }
+}

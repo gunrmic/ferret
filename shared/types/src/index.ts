@@ -10,4 +10,9 @@ export {
   RULE_WEIGHTS,
   MAX_RISK_SCORE,
   DIMINISHING_FACTOR,
+  ALERT_RISK_THRESHOLD,
 } from './risk.js';
+export {
+  AlertJobPayloadSchema,
+  type AlertJobPayload,
+} from './alert-job.js';

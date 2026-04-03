@@ -11,3 +11,4 @@ export const RULE_WEIGHTS: Record<StaticFlagRule, number> = {
 
 export const MAX_RISK_SCORE = 100;
 export const DIMINISHING_FACTOR = 0.5;
+export const ALERT_RISK_THRESHOLD = 70;

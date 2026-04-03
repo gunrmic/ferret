@@ -1,4 +1,4 @@
-import { createRedisConnection } from '@ferret/queue';
+import { createRedisConnection, createAlertQueue } from '@ferret/queue';
 import { loadScannerConfig } from './config.js';
 import { createScanWorker } from './worker.js';
 import { startHealthServer } from './health.js';
@@ -7,7 +7,8 @@ import { logger } from './logger.js';
 const config = loadScannerConfig();
 
 const connection = createRedisConnection(config.REDIS_URL);
-const worker = createScanWorker(connection, config.SCANNER_CONCURRENCY);
+const alertQueue = createAlertQueue(connection);
+const worker = createScanWorker(connection, config.SCANNER_CONCURRENCY, alertQueue);
 const healthServer = startHealthServer(config.SCANNER_PORT);
 
 logger.info(
@@ -19,6 +20,7 @@ async function shutdown() {
   logger.info('Shutting down...');
 
   await worker.close();
+  await alertQueue.close();
   healthServer.close();
   connection.disconnect();
 
