@@ -20,7 +20,10 @@ function isMinifiedOrBundled(filename: string): boolean {
     lower.endsWith('.umd.min.js') ||
     lower.endsWith('.prod.js') ||
     lower.endsWith('.production.js') ||
-    lower.endsWith('.browser.js')
+    lower.endsWith('.browser.js') ||
+    lower.endsWith('.d.ts') ||
+    lower.endsWith('.d.mts') ||
+    lower.endsWith('.d.cts')
   );
 }
 
@@ -44,7 +47,19 @@ async function walkDir(dir: string, base?: string): Promise<string[]> {
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
 
-    if (entry.name === 'node_modules' || entry.name === 'dist') continue;
+    if (
+      entry.name === 'node_modules' ||
+      entry.name === 'dist' ||
+      entry.name === 'test' ||
+      entry.name === 'tests' ||
+      entry.name === '__tests__' ||
+      entry.name === '__mocks__' ||
+      entry.name === 'fixtures' ||
+      entry.name === 'benchmark' ||
+      entry.name === 'benchmarks' ||
+      entry.name === 'examples' ||
+      entry.name === 'example'
+    ) continue;
 
     if (entry.isDirectory()) {
       files.push(...(await walkDir(fullPath, root)));

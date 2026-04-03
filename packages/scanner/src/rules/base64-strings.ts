@@ -3,7 +3,9 @@ import type { AnalysisRule } from './types.js';
 import { parseFile, getSourceLine } from './parse-utils.js';
 import traverse from './traverse.js';
 
-const BASE64_REGEX = /^[A-Za-z0-9+/]{40,}={0,2}$/;
+// Require 100+ chars and at least one padding char or mixed case + digits
+// to avoid matching class names, hashes, and identifiers
+const BASE64_REGEX = /^[A-Za-z0-9+/]{100,}={0,2}$/;
 
 export const base64StringsRule: AnalysisRule = {
   name: 'base64-strings',

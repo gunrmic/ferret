@@ -3,6 +3,17 @@ import type { AnalysisRule } from './types.js';
 import { parseFile, getSourceLine } from './parse-utils.js';
 import traverse from './traverse.js';
 
+// Common env vars that are NOT suspicious
+const SAFE_ENV_VARS = new Set([
+  'NODE_ENV', 'NODE_DEBUG', 'NODE_PATH',
+  'DEBUG', 'VERBOSE', 'LOG_LEVEL', 'CI',
+  'TERM', 'LANG', 'SHELL', 'HOME', 'USER', 'PATH',
+  'TZ', 'LC_ALL', 'LC_CTYPE',
+  'NO_COLOR', 'FORCE_COLOR', 'TERM_PROGRAM',
+  'npm_lifecycle_event', 'npm_package_name',
+  'JEST_WORKER_ID', 'VITEST', 'TEST',
+]);
+
 export const envAccessRule: AnalysisRule = {
   name: 'env-access',
 
@@ -16,7 +27,6 @@ export const envAccessRule: AnalysisRule = {
       MemberExpression(path) {
         const { object, property } = path.node;
 
-        // process.env.SOMETHING or process.env['SOMETHING']
         if (
           object.type === 'MemberExpression' &&
           object.object.type === 'Identifier' &&
@@ -31,6 +41,9 @@ export const envAccessRule: AnalysisRule = {
                 ? property.value
                 : 'unknown';
 
+          // Skip known safe env vars
+          if (SAFE_ENV_VARS.has(envVar)) return;
+
           flags.push({
             rule: 'env-access',
             severity: 'medium',
@@ -43,7 +56,6 @@ export const envAccessRule: AnalysisRule = {
       },
 
       VariableDeclarator(path) {
-        // const { SECRET } = process.env
         const { init } = path.node;
         if (
           init?.type === 'MemberExpression' &&
