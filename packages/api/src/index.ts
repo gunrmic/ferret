@@ -1,3 +1,5 @@
+export {};
+
 process.on('uncaughtException', (err) => {
   console.error('UNCAUGHT EXCEPTION:', err);
   process.exit(1);
@@ -10,13 +12,13 @@ process.on('unhandledRejection', (err) => {
 
 console.log('API starting...');
 
-const { default: Fastify } = await import('fastify');
-const { default: cors } = await import('@fastify/cors');
-const { prisma } = await import('@ferret/db');
-const { loadApiConfig } = await import('./config.js');
-const { feedRoutes } = await import('./routes/feed.js');
-const { scanRoutes } = await import('./routes/scan.js');
-const { statsRoutes } = await import('./routes/stats.js');
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import { prisma } from '@ferret/db';
+import { loadApiConfig } from './config.js';
+import { feedRoutes } from './routes/feed.js';
+import { scanRoutes } from './routes/scan.js';
+import { statsRoutes } from './routes/stats.js';
 
 console.log('Modules loaded, configuring...');
 
