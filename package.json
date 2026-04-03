@@ -1,0 +1,28 @@
+{
+  "name": "ferret",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:watcher": "pnpm --filter @ferret/watcher dev",
+    "dev:scanner": "pnpm --filter @ferret/scanner dev",
+    "build": "pnpm -r build",
+    "db:migrate": "pnpm --filter @ferret/db exec prisma migrate dev",
+    "db:studio": "pnpm --filter @ferret/db exec prisma studio",
+    "db:generate": "pnpm --filter @ferret/db exec prisma generate",
+    "clean": "pnpm -r exec rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "tsx": "^4.0.0",
+    "@types/node": "^20.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "msgpackr-extract",
+      "esbuild"
+    ]
+  }
+}

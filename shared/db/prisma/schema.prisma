@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Package {
+  id              Int       @id @default(autoincrement())
+  name            String    @unique
+  weeklyDownloads Int?      @map("weekly_downloads")
+  lastVersion     String?   @map("last_version")
+  lastCheckedAt   DateTime? @map("last_checked_at")
+  etag            String?
+
+  @@map("packages")
+}
+
+model Scan {
+  id              Int      @id @default(autoincrement())
+  packageName     String   @map("package_name")
+  version         String
+  previousVersion String?  @map("previous_version")
+  scannedAt       DateTime @default(now()) @map("scanned_at")
+  riskScore       Int?     @map("risk_score")
+  staticFlags     Json?    @map("static_flags")
+  llmSummary      String?  @map("llm_summary")
+  diffUrl         String?  @map("diff_url")
+  alerted         Boolean  @default(false)
+
+  alerts Alert[]
+
+  @@map("scans")
+}
+
+model Alert {
+  id        Int      @id @default(autoincrement())
+  scanId    Int      @map("scan_id")
+  alertType String   @map("alert_type")
+  sentAt    DateTime @default(now()) @map("sent_at")
+  content   String?
+
+  scan Scan @relation(fields: [scanId], references: [id])
+
+  @@map("alerts")
+}
