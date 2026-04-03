@@ -5,13 +5,15 @@ import traverse from './traverse.js';
 
 // Common env vars that are NOT suspicious
 const SAFE_ENV_VARS = new Set([
-  'NODE_ENV', 'NODE_DEBUG', 'NODE_PATH',
-  'DEBUG', 'VERBOSE', 'LOG_LEVEL', 'CI',
-  'TERM', 'LANG', 'SHELL', 'HOME', 'USER', 'PATH',
-  'TZ', 'LC_ALL', 'LC_CTYPE',
-  'NO_COLOR', 'FORCE_COLOR', 'TERM_PROGRAM',
-  'npm_lifecycle_event', 'npm_package_name',
-  'JEST_WORKER_ID', 'VITEST', 'TEST',
+  'NODE_ENV', 'NODE_DEBUG', 'NODE_PATH', 'NODE_OPTIONS',
+  'NODE_EXTRA_CA_CERTS', 'NODE_TLS_REJECT_UNAUTHORIZED',
+  'DEBUG', 'VERBOSE', 'LOG_LEVEL', 'CI', 'GITHUB_ACTIONS',
+  'TERM', 'LANG', 'SHELL', 'HOME', 'USER', 'PATH', 'PWD', 'TMPDIR',
+  'TZ', 'LC_ALL', 'LC_CTYPE', 'LC_MESSAGES',
+  'NO_COLOR', 'FORCE_COLOR', 'TERM_PROGRAM', 'COLORTERM',
+  'npm_lifecycle_event', 'npm_package_name', 'npm_config_user_agent',
+  'JEST_WORKER_ID', 'VITEST', 'TEST', 'TESTING',
+  'HOSTNAME', 'PORT', 'HOST',
 ]);
 
 export const envAccessRule: AnalysisRule = {

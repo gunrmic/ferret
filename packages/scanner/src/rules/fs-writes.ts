@@ -23,41 +23,10 @@ export const fsWritesRule: AnalysisRule = {
     const flags: StaticFlag[] = [];
 
     traverse(ast, {
-      ImportDeclaration(path) {
-        if (FS_MODULES.has(path.node.source.value)) {
-          flags.push({
-            rule: 'fs-writes',
-            severity: 'medium',
-            filename,
-            line: path.node.loc?.start.line ?? 0,
-            snippet: getSourceLine(code, path.node.loc?.start.line),
-            description: `Import of filesystem module "${path.node.source.value}"`,
-          });
-        }
-      },
-
       CallExpression(path) {
         const { callee } = path.node;
 
-        // require('fs') etc.
-        if (
-          callee.type === 'Identifier' &&
-          callee.name === 'require' &&
-          path.node.arguments.length > 0 &&
-          path.node.arguments[0].type === 'StringLiteral' &&
-          FS_MODULES.has(path.node.arguments[0].value)
-        ) {
-          flags.push({
-            rule: 'fs-writes',
-            severity: 'medium',
-            filename,
-            line: callee.loc?.start.line ?? 0,
-            snippet: getSourceLine(code, callee.loc?.start.line),
-            description: `require() of "${path.node.arguments[0].value}"`,
-          });
-        }
-
-        // fs.writeFile(...), etc.
+        // fs.writeFile(...), etc. — only flag actual write calls, not imports
         if (
           callee.type === 'MemberExpression' &&
           callee.property.type === 'Identifier' &&

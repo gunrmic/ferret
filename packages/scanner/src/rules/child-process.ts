@@ -19,39 +19,8 @@ export const childProcessRule: AnalysisRule = {
     const flags: StaticFlag[] = [];
 
     traverse(ast, {
-      ImportDeclaration(path) {
-        if (CP_MODULES.has(path.node.source.value)) {
-          flags.push({
-            rule: 'child-process',
-            severity: 'critical',
-            filename,
-            line: path.node.loc?.start.line ?? 0,
-            snippet: getSourceLine(code, path.node.loc?.start.line),
-            description: `Import of "${path.node.source.value}"`,
-          });
-        }
-      },
-
       CallExpression(path) {
         const { callee } = path.node;
-
-        // require('child_process')
-        if (
-          callee.type === 'Identifier' &&
-          callee.name === 'require' &&
-          path.node.arguments.length > 0 &&
-          path.node.arguments[0].type === 'StringLiteral' &&
-          CP_MODULES.has(path.node.arguments[0].value)
-        ) {
-          flags.push({
-            rule: 'child-process',
-            severity: 'critical',
-            filename,
-            line: callee.loc?.start.line ?? 0,
-            snippet: getSourceLine(code, callee.loc?.start.line),
-            description: `require() of "${path.node.arguments[0].value}"`,
-          });
-        }
 
         // cp.exec(...), cp.spawn(...), etc. — only flag if the object
         // looks like a child_process import (not regex.exec, cursor.exec, etc.)
