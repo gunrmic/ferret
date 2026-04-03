@@ -1,66 +1,82 @@
-# Ferret
+# Ferret Watch
 
-Real-time npm supply chain security monitor. Ferret continuously watches the npm registry for new versions of popular packages, diffs the code changes, and uses static analysis to flag suspicious behavior — before developers install the update.
+Real-time npm supply chain security monitor. Watches the npm registry for new versions of popular packages, diffs the code changes, and flags suspicious behavior — before developers install the update.
+
+**Live:** [ferretwatch.dev](https://ferretwatch.dev) | **Twitter:** [@theferretwatch](https://x.com/theferretwatch)
 
 ```
-npm registry ──> Watcher ──> Redis Queue ──> Scanner Workers ──> Postgres
-                (polls)       (BullMQ)       (diff + AST)       (results)
+npm registry ──> Watcher ──> Redis Queue ──> Scanner ──> Postgres ──> API
+                (polls)       (BullMQ)      (diff+AST)   (results)   (feed)
+                                                 │
+                                                 └──> Alerter ──> Twitter/X
 ```
 
 ## How It Works
 
-1. **Watcher** polls the npm registry every 5 minutes for new versions of the top ~1000 most downloaded packages (100k+ weekly downloads)
+1. **Watcher** polls the npm registry every 5 minutes for new versions of 150+ popular packages
 2. New versions are enqueued as scan jobs via **BullMQ** (Redis-backed, with deduplication and retries)
-3. **Scanner** workers download both the old and new tarballs, extract them, and diff the files
-4. Each changed file is parsed into an AST using **Babel** and run through 6 static analysis rules
-5. A **risk score** (0–100) is computed based on the types and frequency of suspicious patterns found
-6. Results are stored in **Postgres** for review
+3. **Scanner** downloads both old and new tarballs, extracts, and diffs the source files
+4. Changed files are parsed into ASTs using **Babel** and analyzed for known attack patterns
+5. A **risk score** (0–100) is computed. High-risk scans trigger alerts
+6. **Alerter** auto-posts to Twitter/X when suspicious changes are detected
+7. Results are available via the **API** and **live dashboard** at [ferretwatch.dev](https://ferretwatch.dev)
 
-## Static Analysis Rules
+## Detection Engine
 
-| Rule | Detects | Weight |
-|------|---------|--------|
-| `child-process` | `child_process` imports, `exec()`, `spawn()`, `fork()` | 30 |
-| `eval-usage` | `eval()`, `Function()`, `new Function()` | 25 |
-| `network-calls` | `http`/`https`/`fetch`/`axios`/`got` imports + calls | 20 |
-| `env-access` | `process.env` reads, destructuring from `process.env` | 15 |
-| `base64-strings` | Base64-encoded strings (40+ chars), `atob()`, `Buffer.from(x, 'base64')` | 15 |
-| `fs-writes` | `fs` imports + `writeFile`, `appendFile`, `createWriteStream`, `mkdir` | 10 |
+The scanner uses two categories of detection rules, designed based on analysis of real npm supply chain attacks (event-stream, ua-parser-js, eslint-scope, node-ipc, coa/rc, crossenv).
 
-Only **newly introduced** patterns are flagged — existing code that hasn't changed is ignored. This is done by parsing both old and new file ASTs and comparing flag fingerprints.
+### Direct Code Execution
 
-### Risk Scoring
+| Pattern | Severity | Description |
+|---------|----------|-------------|
+| `eval()` | Critical | Direct code execution from string |
+| `new Function()` | Critical | Dynamic function construction |
+| `module._compile()` | Critical | Internal Node.js code compilation (event-stream pattern) |
+| `vm.runInNewContext()` | Critical | Sandboxed code execution |
 
-- Each rule has a base weight (see table above)
-- First occurrence of a rule = full weight
-- Each additional occurrence = 50% of weight (diminishing returns)
-- Score is capped at 100
-- Example: `child_process` import + `exec()` call + `fetch()` + `process.env` read = 30 + 15 + 20 + 15 = **80**
+### Composite Attack Patterns
+
+These detect suspicious **combinations** of APIs within the same file — individual calls (like `fetch()` or `fs.writeFile()`) are not flagged on their own since they're normal in most packages.
+
+| Pattern | Based On | Detects |
+|---------|----------|---------|
+| Credential file read + network request | eslint-scope | Reading `.npmrc`/`.env`/`.ssh` and exfiltrating via HTTP |
+| `JSON.stringify(process.env)` + network | crossenv | Serializing all env vars and sending them out |
+| `child_process` + shell download (`curl\|bash`) | ua-parser-js, coa | Install-time remote code execution |
+| `crypto.createDecipher` + `eval`/`module._compile` | event-stream | Decrypting and executing hidden payloads |
+| Base64 decode + code execution | various | Obfuscated code execution |
+| `process.platform` switch + `child_process` | ua-parser-js, coa | Platform-specific malware delivery |
+| Recursive directory walk + `fs.writeFile` | node-ipc | Destructive file overwrite (protestware) |
+| IP geolocation API + destructive action | node-ipc | Geo-targeted attacks |
+| New `preinstall`/`postinstall` lifecycle script | nearly all attacks | #1 attack vector in npm supply chain |
+
+Safe lifecycle scripts are whitelisted: `node-gyp-build`, `prebuild-install`, `node-pre-gyp`, `husky`, `patch-package`.
+
+### Noise Reduction
+
+To minimize false positives, the scanner:
+- Only flags **newly introduced** patterns (diffs old vs new AST by content fingerprint)
+- Always diffs against the **previous npm version** (from registry `time` field, not our DB)
+- Skips `dist/`, `test/`, `examples/`, `benchmark/` directories
+- Skips minified files (`.min.js`, `-min.js`, bundled files)
+- Skips files with lines > 5000 chars (minified content detection)
+- Skips `.d.ts` type declaration files
 
 ## Project Structure
 
 ```
 ferret/
 ├── packages/
-│   ├── scanner/              # BullMQ worker: download, diff, analyze
-│   │   └── src/
-│   │       ├── index.ts      # Entry point, worker bootstrap
-│   │       ├── tarball.ts    # Download + extract npm tarballs (p-limit 5)
-│   │       ├── differ.ts     # File-level diff between package versions
-│   │       ├── analyzer.ts   # Orchestrates rules across changed files
-│   │       ├── risk-scorer.ts
-│   │       ├── worker.ts     # BullMQ job processor
-│   │       └── rules/        # 6 AST-based analysis rules
-│   └── watcher/              # npm registry poller
-│       └── src/
-│           ├── index.ts      # Entry point, starts poll loop
-│           ├── poller.ts     # Seed packages + poll for new versions
-│           └── registry-client.ts  # npm API (search, downloads, packument)
+│   ├── scanner/          # BullMQ worker: download, diff, analyze
+│   ├── watcher/          # npm registry poller + package seeding
+│   ├── api/              # Fastify API + landing page (ferretwatch.dev)
+│   └── alerter/          # Twitter/X auto-posting on high-risk scans
 ├── shared/
-│   ├── db/                   # Prisma schema + client
-│   ├── queue/                # BullMQ queue + Redis connection
-│   └── types/                # Zod schemas, shared types, config
-├── docker-compose.yml        # Postgres 16 + Redis 7
+│   ├── db/               # Prisma schema + client
+│   ├── queue/            # BullMQ queues (scan + alert) + Redis connection
+│   └── types/            # Zod schemas, shared types, config
+├── docker-compose.yml    # Postgres 16 + Redis 7 (local dev)
+├── Dockerfile            # Multi-stage build for Railway deployment
 └── pnpm-workspace.yaml
 ```
 
@@ -69,13 +85,16 @@ ferret/
 | Component | Technology |
 |-----------|-----------|
 | Language | TypeScript (ES2022) |
-| Runtime | Node.js |
+| Runtime | Node.js 20 |
 | Monorepo | pnpm workspaces |
 | Queue | BullMQ + Redis |
 | Database | PostgreSQL + Prisma |
+| API | Fastify |
 | AST Parsing | @babel/parser + @babel/traverse |
+| Alerting | Twitter API v2 (twitter-api-v2) |
 | Validation | Zod |
 | Logging | Pino (structured JSON) |
+| Deployment | Railway |
 
 ## Getting Started
 
@@ -88,7 +107,6 @@ ferret/
 ### Setup
 
 ```bash
-# Clone and install
 git clone https://github.com/gunrmic/ferret.git
 cd ferret
 pnpm install
@@ -107,26 +125,27 @@ pnpm db:migrate
 ### Run
 
 ```bash
-# Terminal 1 — start scanner worker
+# Terminal 1 — scanner worker
 pnpm dev:scanner
 
-# Terminal 2 — start watcher
+# Terminal 2 — watcher (seeds packages on first run)
 pnpm dev:watcher
-```
 
-The watcher will seed popular packages on first run, then begin polling for new versions every 5 minutes. The scanner picks up jobs and processes them with concurrency of 3.
+# Terminal 3 — API + dashboard
+pnpm dev:api
+
+# Terminal 4 — alerter (set TWITTER_ENABLED=true with creds)
+pnpm dev:alerter
+```
 
 ### Health Checks
 
-- Watcher: `http://localhost:3001`
-- Scanner: `http://localhost:3002`
-
-### Inspect Results
-
-```bash
-# Open Prisma Studio to browse scan results
-pnpm db:studio
-```
+| Service | URL |
+|---------|-----|
+| Watcher | http://localhost:3001 |
+| Scanner | http://localhost:3002 |
+| API | http://localhost:3003/healthz |
+| Alerter | http://localhost:3004 |
 
 ## Configuration
 
@@ -137,38 +156,29 @@ All configuration is via environment variables (validated with Zod at startup):
 | `DATABASE_URL` | — | PostgreSQL connection string |
 | `REDIS_URL` | `redis://localhost:6379` | Redis connection string |
 | `NPM_REGISTRY_URL` | `https://registry.npmjs.org` | npm registry URL |
-| `MIN_WEEKLY_DOWNLOADS` | `100000` | Minimum weekly downloads to monitor a package |
-| `SCAN_INTERVAL_MINUTES` | `5` | How often the watcher polls for new versions |
-| `SCANNER_CONCURRENCY` | `3` | Number of concurrent scan jobs |
-| `SCANNER_PORT` | `3002` | Scanner health check port |
-| `WATCHER_PORT` | `3001` | Watcher health check port |
-| `LOG_LEVEL` | `info` | Pino log level |
+| `MIN_WEEKLY_DOWNLOADS` | `100000` | Minimum weekly downloads to monitor |
+| `SCAN_INTERVAL_MINUTES` | `5` | Poll interval for new versions |
+| `SCANNER_CONCURRENCY` | `3` | Concurrent scan jobs |
+| `PORT` | `3003` | API server port |
+| `TWITTER_ENABLED` | `false` | Enable Twitter posting |
+| `TWITTER_API_KEY` | — | Twitter API key |
+| `TWITTER_API_SECRET` | — | Twitter API secret |
+| `TWITTER_ACCESS_TOKEN` | — | Twitter access token |
+| `TWITTER_ACCESS_SECRET` | — | Twitter access secret |
+| `SITE_URL` | `https://ferretwatch.dev` | Base URL for tweet links |
 
-## Database Schema
+## Deployment
 
-Three tables managed by Prisma:
+Deployed on [Railway](https://railway.app) with 6 services:
 
-- **packages** — monitored packages with last-seen version and ETag for conditional HTTP requests
-- **scans** — scan results with risk score, static flags (JSON), and version metadata
-- **alerts** — alert records (Phase 2: tweets, Slack, email)
+- **Postgres** — managed database
+- **Redis** — managed Redis
+- **Watcher** — polls npm registry
+- **Scanner** — processes scan jobs
+- **API** — public feed + dashboard at ferretwatch.dev
+- **Alerter** — posts to Twitter/X
 
-## Roadmap
-
-### Phase 1 (current)
-- [x] Watcher polls registry, filters top packages by downloads
-- [x] Scanner diffs and runs static analysis (AST-based)
-- [x] Results stored in Postgres
-- [ ] Simple public JSON feed at `/feed`
-
-### Phase 2
-- [ ] Claude API analysis for flagged packages
-- [ ] Auto-tweet on high-risk findings (Twitter API v2)
-- [ ] Next.js frontend with public feed
-
-### Phase 3
-- [ ] Subscription system (monitor specific packages)
-- [ ] Slack/email webhooks
-- [ ] Historical diff viewer
+Each service uses the same multi-stage Dockerfile with a different start command.
 
 ## License
 
