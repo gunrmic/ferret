@@ -21,7 +21,9 @@ COPY . .
 RUN pnpm --filter @ferret/db exec prisma generate
 RUN pnpm build
 
-# Production — no prune, prisma CLI needed for migrations at runtime
+# Production
 FROM base AS production
 ENV NODE_ENV=production
 COPY --from=build /app /app
+# Verify dist files exist
+RUN ls packages/api/dist/index.js packages/watcher/dist/index.js packages/scanner/dist/index.js packages/alerter/dist/index.js
