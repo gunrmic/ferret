@@ -15,9 +15,10 @@ function isMinifiedOrBundled(filename: string): boolean {
     lower.endsWith('.min.js') ||
     lower.endsWith('.min.mjs') ||
     lower.endsWith('.min.cjs') ||
+    lower.includes('.min.') ||
+    lower.includes('-min.') ||
     lower.endsWith('.bundle.js') ||
     lower.endsWith('.umd.js') ||
-    lower.endsWith('.umd.min.js') ||
     lower.endsWith('.prod.js') ||
     lower.endsWith('.production.js') ||
     lower.endsWith('.browser.js') ||

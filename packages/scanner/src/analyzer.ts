@@ -6,9 +6,9 @@ import { checkLifecycleScripts } from './rules/lifecycle-scripts.js';
 const MAX_LINE_LENGTH = 5000;
 
 function isMinifiedContent(code: string): boolean {
-  const firstNewline = code.indexOf('\n');
-  if (firstNewline === -1) return code.length > MAX_LINE_LENGTH;
-  return firstNewline > MAX_LINE_LENGTH;
+  // Check if any of the first 10 lines exceeds the max length
+  const lines = code.split('\n', 10);
+  return lines.some((line) => line.length > MAX_LINE_LENGTH);
 }
 
 export function analyzeChanges(diff: DiffResult): StaticFlag[] {
