@@ -3,7 +3,12 @@ import type { AnalysisRule } from './types.js';
 import { parseFile, getSourceLine } from './parse-utils.js';
 import traverse from './traverse.js';
 
-const CP_MODULES = new Set(['child_process', 'node:child_process']);
+// Only flag calls on objects that look like child_process imports
+const CP_OBJECT_NAMES = new Set([
+  'cp', 'child_process', 'childProcess', 'proc',
+  'child', 'subprocess',
+]);
+
 const CP_METHODS = new Set([
   'exec', 'execSync', 'spawn', 'spawnSync',
   'execFile', 'execFileSync', 'fork',
@@ -22,30 +27,22 @@ export const childProcessRule: AnalysisRule = {
       CallExpression(path) {
         const { callee } = path.node;
 
-        // cp.exec(...), cp.spawn(...), etc. — only flag if the object
-        // looks like a child_process import (not regex.exec, cursor.exec, etc.)
+        // cp.exec(...), childProcess.spawn(...), etc.
         if (
           callee.type === 'MemberExpression' &&
           callee.property.type === 'Identifier' &&
-          CP_METHODS.has(callee.property.name)
+          CP_METHODS.has(callee.property.name) &&
+          callee.object.type === 'Identifier' &&
+          CP_OBJECT_NAMES.has(callee.object.name)
         ) {
-          // Only flag if the object is NOT a common false-positive pattern
-          const objName =
-            callee.object.type === 'Identifier' ? callee.object.name : '';
-          const isFalsePositive =
-            callee.property.name === 'exec' &&
-            !['cp', 'child_process', 'childProcess', 'proc'].includes(objName);
-
-          if (!isFalsePositive) {
-            flags.push({
-              rule: 'child-process',
-              severity: 'critical',
-              filename,
-              line: callee.loc?.start.line ?? 0,
-              snippet: getSourceLine(code, callee.loc?.start.line),
-              description: `Call to ${callee.property.name}()`,
-            });
-          }
+          flags.push({
+            rule: 'child-process',
+            severity: 'critical',
+            filename,
+            line: callee.loc?.start.line ?? 0,
+            snippet: getSourceLine(code, callee.loc?.start.line),
+            description: `Call to ${callee.object.name}.${callee.property.name}()`,
+          });
         }
       },
     });
