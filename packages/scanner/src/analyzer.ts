@@ -2,22 +2,29 @@ import type { StaticFlag } from '@ferret/types';
 import type { DiffResult } from './differ.js';
 import { analyzeFile } from './rules/index.js';
 
+const MAX_LINE_LENGTH = 5000;
+
+function isMinifiedContent(code: string): boolean {
+  // If any line exceeds 5000 chars, it's likely minified/bundled
+  const firstNewline = code.indexOf('\n');
+  if (firstNewline === -1) return code.length > MAX_LINE_LENGTH;
+  return firstNewline > MAX_LINE_LENGTH;
+}
+
 export function analyzeChanges(diff: DiffResult): StaticFlag[] {
   const allFlags: StaticFlag[] = [];
 
-  // Analyze added files (no old code to compare)
   for (const file of diff.addedFiles) {
+    if (isMinifiedContent(file.content)) continue;
     allFlags.push(...analyzeFile(file.content, file.path));
   }
 
-  // Analyze modified files (compare old vs new)
   for (const file of diff.modifiedFiles) {
+    if (isMinifiedContent(file.newContent)) continue;
     allFlags.push(
       ...analyzeFile(file.newContent, file.path, file.oldContent),
     );
   }
-
-  // Removed files are not analyzed (nothing new to flag)
 
   return allFlags;
 }
