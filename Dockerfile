@@ -15,11 +15,14 @@ COPY packages/api/package.json packages/api/
 COPY packages/alerter/package.json packages/alerter/
 RUN pnpm install --frozen-lockfile
 
-# Build
+# Build and migrate
 FROM deps AS build
 COPY . .
 RUN pnpm --filter @ferret/db exec prisma generate
 RUN pnpm build
+# Run migrations at build time (Railway provides DATABASE_URL as build arg)
+ARG DATABASE_URL
+RUN if [ -n "$DATABASE_URL" ]; then pnpm --filter @ferret/db exec prisma migrate deploy; fi
 
 # Production
 FROM base AS production
