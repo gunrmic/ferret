@@ -1,12 +1,24 @@
-import Fastify from 'fastify';
-import cors from '@fastify/cors';
-import { prisma } from '@ferret/db';
-import { loadApiConfig } from './config.js';
-import { feedRoutes } from './routes/feed.js';
-import { scanRoutes } from './routes/scan.js';
-import { statsRoutes } from './routes/stats.js';
-import { logger } from './logger.js';
-// force rebuild
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('UNHANDLED REJECTION:', err);
+  process.exit(1);
+});
+
+console.log('API starting...');
+
+const { default: Fastify } = await import('fastify');
+const { default: cors } = await import('@fastify/cors');
+const { prisma } = await import('@ferret/db');
+const { loadApiConfig } = await import('./config.js');
+const { feedRoutes } = await import('./routes/feed.js');
+const { scanRoutes } = await import('./routes/scan.js');
+const { statsRoutes } = await import('./routes/stats.js');
+
+console.log('Modules loaded, configuring...');
 
 const config = loadApiConfig();
 
@@ -22,17 +34,16 @@ await app.register(statsRoutes);
 
 try {
   await app.listen({ port: config.PORT, host: '0.0.0.0' });
-  logger.info({ port: config.PORT }, 'API server started');
+  console.log(`API server started on port ${config.PORT}`);
 } catch (err) {
-  logger.fatal({ err }, 'Failed to start API');
+  console.error('Failed to start API:', err);
   process.exit(1);
 }
 
 async function shutdown() {
-  logger.info('Shutting down...');
+  console.log('Shutting down...');
   await app.close();
   await prisma.$disconnect();
-  logger.info('Shutdown complete');
   process.exit(0);
 }
 
