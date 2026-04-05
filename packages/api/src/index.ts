@@ -1,17 +1,5 @@
 export {};
 
-process.on('uncaughtException', (err) => {
-  console.error('UNCAUGHT EXCEPTION:', err);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (err) => {
-  console.error('UNHANDLED REJECTION:', err);
-  process.exit(1);
-});
-
-console.log('API starting...');
-
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import Fastify from 'fastify';
@@ -22,8 +10,19 @@ import { loadApiConfig } from './config.js';
 import { feedRoutes } from './routes/feed.js';
 import { scanRoutes } from './routes/scan.js';
 import { statsRoutes } from './routes/stats.js';
+import { rssRoutes } from './routes/rss.js';
+import { renderDocsPage } from './views/docs.js';
+import { logger } from './logger.js';
 
-console.log('Modules loaded, configuring...');
+process.on('uncaughtException', (err) => {
+  logger.fatal({ err }, 'Uncaught exception');
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  logger.fatal({ err }, 'Unhandled rejection');
+  process.exit(1);
+});
 
 const config = loadApiConfig();
 
@@ -38,21 +37,23 @@ await app.register(fastifyStatic, {
 });
 
 app.get('/healthz', async () => ({ ok: true, service: 'api' }));
+app.get('/docs', async (_request, reply) => reply.type('text/html').send(renderDocsPage()));
 
 await app.register(feedRoutes);
 await app.register(scanRoutes);
 await app.register(statsRoutes);
+await app.register(rssRoutes);
 
 try {
   await app.listen({ port: config.PORT, host: '0.0.0.0' });
-  console.log(`API server started on port ${config.PORT}`);
+  logger.info({ port: config.PORT }, 'API server started');
 } catch (err) {
-  console.error('Failed to start API:', err);
+  logger.fatal({ err }, 'Failed to start API');
   process.exit(1);
 }
 
 async function shutdown() {
-  console.log('Shutting down...');
+  logger.info('Shutting down...');
   await app.close();
   await prisma.$disconnect();
   process.exit(0);

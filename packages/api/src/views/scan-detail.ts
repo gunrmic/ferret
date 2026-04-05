@@ -486,6 +486,16 @@ export function renderScanDetailPage(scan: ScanData): string {
       footer { flex-direction: column; gap: 12px; text-align: center; }
       nav .nav-links a { padding: 6px 8px; font-size: 12px; }
     }
+
+    @media print {
+      nav, footer, .back-link { display: none; }
+      body { background: white; }
+      .container { max-width: 100%; padding: 0; }
+      .flag-card, .alert-item, .score-section, .summary-card { break-inside: avoid; }
+      .flag-snippet { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; }
+      .score-badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .sev-badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
   </style>
 </head>
 <body>

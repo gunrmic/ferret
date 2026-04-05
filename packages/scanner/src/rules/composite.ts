@@ -22,10 +22,12 @@ export const compositeRule: AnalysisRule = {
       '.netrc', '.git-credentials', '.gnupg',
     ];
     const readsCredFile = credentialPaths.some((p) => code.includes(p));
+    // Also detect computed paths: path.join(home, '.npmrc'), path.resolve(..., '.ssh')
+    const readsCredViaPath = /path\.(join|resolve)\([^)]*(['"]\.npmrc|['"]\.env|['"]\.ssh|['"]\.aws|['"]\.docker|['"]\.netrc|['"]\.git-credentials|['"]\.gnupg)/.test(code);
     const hasNetwork =
-      /https?\.request|https?\.get\(|fetch\(|net\.connect/.test(code);
+      /https?\.request|https?\.get\(|fetch\(|net\.connect|require\(['"]https?['"]\)/.test(code);
 
-    if (readsCredFile && hasNetwork) {
+    if ((readsCredFile || readsCredViaPath) && hasNetwork) {
       flags.push({
         rule: 'eval-usage',
         severity: 'critical',
