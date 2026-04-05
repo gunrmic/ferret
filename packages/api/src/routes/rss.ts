@@ -31,7 +31,7 @@ export async function rssRoutes(app: FastifyInstance) {
       const now = new Date().toISOString();
 
       const entries = scans.map((scan) => {
-        const url = `${siteUrl}/scan/${encodeURIComponent(scan.packageName)}/${scan.version}`;
+        const url = `${siteUrl}/scan/${encodeURIComponent(scan.packageName)}/${encodeURIComponent(scan.version)}`;
         const title = `${scan.packageName}@${scan.version} — risk score ${scan.riskScore}/100`;
         const updated = new Date(scan.scannedAt).toISOString();
 

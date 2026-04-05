@@ -87,7 +87,7 @@ function renderFlags(flags: ScanFlag[]): string {
         <span class="flag-rule">${escapeHtml(flag.rule)}</span>
         <span class="sev-badge ${severityClass(flag.severity)}">${escapeHtml(flag.severity)}</span>
       </div>
-      <div class="flag-location">${escapeHtml(flag.filename)}${flag.line ? `:${flag.line}` : ''}</div>
+      <div class="flag-location">${escapeHtml(flag.filename)}${flag.line ? `:${Number(flag.line) || 0}` : ''}</div>
       ${flag.snippet ? `<pre class="flag-snippet"><code>${escapeHtml(flag.snippet)}</code></pre>` : ''}
       <div class="flag-desc">${escapeHtml(flag.description)}</div>
     </div>`;

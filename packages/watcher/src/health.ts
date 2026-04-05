@@ -8,7 +8,7 @@ export function startHealthServer(port: number, redis: Redis): Server {
     try {
       await Promise.all([
         redis.ping(),
-        prisma.$queryRawUnsafe('SELECT 1'),
+        prisma.$queryRaw`SELECT 1`,
       ]);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, service: 'watcher' }));

@@ -40,7 +40,9 @@ export async function scanRoutes(app: FastifyInstance) {
     };
 
     const decoded = decodeURIComponent(packageName);
-    const wantsHtml = request.headers.accept?.includes('text/html');
+    const wantsHtml = (request.headers.accept ?? '')
+      .split(',')
+      .some((part) => part.trim().split(';')[0].trim() === 'text/html');
 
     try {
       const scan = await prisma.scan.findFirst({

@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import { prisma } from '@ferret/db';
 import { loadApiConfig } from './config.js';
@@ -29,6 +31,23 @@ const config = loadApiConfig();
 const app = Fastify({ logger: { level: config.LOG_LEVEL } });
 
 await app.register(cors, { origin: config.CORS_ORIGIN });
+
+await app.register(helmet, {
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      fontSrc: ["'self'", 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      imgSrc: ["'self'", 'data:'],
+      frameAncestors: ["'none'"],
+    },
+  },
+});
+
+await app.register(rateLimit, {
+  max: 100,
+  timeWindow: '1 minute',
+});
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 await app.register(fastifyStatic, {
