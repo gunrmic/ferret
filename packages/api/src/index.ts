@@ -36,9 +36,11 @@ await app.register(helmet, {
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
       fontSrc: ["'self'", 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       imgSrc: ["'self'", 'data:'],
+      connectSrc: ["'self'"],
       frameAncestors: ["'none'"],
     },
   },
