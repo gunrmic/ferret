@@ -1,6 +1,9 @@
 import type { StaticFlag } from '@ferret/types';
 
-const DANGEROUS_SCRIPTS = ['preinstall', 'install', 'postinstall'];
+const DANGEROUS_SCRIPTS = [
+  'preinstall', 'install', 'postinstall',
+  'prepare', 'prepack', 'postpack', 'prepublishOnly',
+];
 
 // Known safe install script commands (native addon build tools)
 const SAFE_SCRIPT_PATTERNS = [

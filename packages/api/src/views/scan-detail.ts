@@ -511,6 +511,7 @@ export function renderScanDetailPage(scan: ScanData): string {
     <div class="pkg-meta">
       <span>Scanned ${formatDate(scan.scannedAt)}</span>
       ${scan.alerted ? '<span class="alerted-badge">Alerted</span>' : ''}
+      <a href="https://www.npmjs.com/package/${encodeURIComponent(scan.packageName)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">View on npm</a>
     </div>
   </div>
 

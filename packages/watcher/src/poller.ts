@@ -76,6 +76,13 @@ export class Poller {
   }
 
   private async poll(): Promise<void> {
+    // Backpressure: skip poll if scan queue is backed up
+    const pending = await this.queue.count();
+    if (pending > 500) {
+      logger.warn({ pending }, 'Scan queue backed up, skipping poll cycle');
+      return;
+    }
+
     const packages = await prisma.package.findMany();
     logger.info({ packageCount: packages.length }, 'Starting poll cycle');
 

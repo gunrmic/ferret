@@ -3,10 +3,24 @@ import { prisma } from '@ferret/db';
 
 export async function feedRoutes(app: FastifyInstance) {
   app.get('/feed', async (request, reply) => {
-    const { cursor, limit = '20', search } = request.query as Record<string, string>;
+    const { cursor, limit = '20', search, minScore, alerted } =
+      request.query as Record<string, string>;
 
     const take = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
     const cursorId = cursor ? parseInt(cursor, 10) : undefined;
+
+    // Build where clause from filters
+    const where: Record<string, unknown> = {};
+    if (search) {
+      where.packageName = { contains: search, mode: 'insensitive' };
+    }
+    if (minScore) {
+      const score = parseInt(minScore, 10);
+      if (!isNaN(score)) where.riskScore = { gte: score };
+    }
+    if (alerted === 'true') {
+      where.alerted = true;
+    }
 
     try {
       const scans = await prisma.scan.findMany({
@@ -15,9 +29,7 @@ export async function feedRoutes(app: FastifyInstance) {
         ...(cursorId
           ? { cursor: { id: cursorId }, skip: 1 }
           : {}),
-        ...(search
-          ? { where: { packageName: { contains: search, mode: 'insensitive' as const } } }
-          : {}),
+        ...(Object.keys(where).length > 0 ? { where } : {}),
         select: {
           id: true,
           packageName: true,

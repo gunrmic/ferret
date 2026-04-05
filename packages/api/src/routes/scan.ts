@@ -3,6 +3,36 @@ import { prisma } from '@ferret/db';
 import { renderScanDetailPage, renderScanNotFoundPage } from '../views/scan-detail.js';
 
 export async function scanRoutes(app: FastifyInstance) {
+  // Package history — all scans for a given package
+  app.get('/scan/:package', async (request, reply) => {
+    const { package: packageName } = request.params as { package: string };
+    const decoded = decodeURIComponent(packageName);
+    const { limit = '20' } = request.query as Record<string, string>;
+    const take = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+
+    try {
+      const scans = await prisma.scan.findMany({
+        where: { packageName: decoded },
+        orderBy: { id: 'desc' },
+        take,
+        select: {
+          id: true,
+          packageName: true,
+          version: true,
+          previousVersion: true,
+          riskScore: true,
+          scannedAt: true,
+          alerted: true,
+        },
+      });
+
+      return reply.send({ package: decoded, scans });
+    } catch (err) {
+      request.log.error({ err }, 'Package history query failed');
+      return reply.status(500).send({ error: 'Internal server error' });
+    }
+  });
+
   app.get('/scan/:package/:version', async (request, reply) => {
     const { package: packageName, version } = request.params as {
       package: string;

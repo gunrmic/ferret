@@ -306,6 +306,37 @@
       color: var(--text-muted);
     }
 
+    .filter-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .filter-pill {
+      font-size: 12px;
+      font-family: inherit;
+      font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-pill:hover {
+      border-color: var(--border-hover);
+      color: var(--text);
+    }
+
+    .filter-pill.active {
+      background: var(--text);
+      color: white;
+      border-color: var(--text);
+    }
+
     /* ---- FEED ---- */
     .feed-section { padding-bottom: 64px; }
 
@@ -571,6 +602,11 @@
     <div class="search-bar">
       <input type="text" id="search-input" placeholder="Search packages..." autocomplete="off">
     </div>
+    <div class="filter-row">
+      <button class="filter-pill active" data-filter="all">All</button>
+      <button class="filter-pill" data-filter="flagged">Flagged</button>
+      <button class="filter-pill" data-filter="alerted">Alerted</button>
+    </div>
     <ul class="scan-list" id="scan-list"></ul>
     <button class="load-more" id="load-more" style="display:none">Load more</button>
   </section>
@@ -681,31 +717,47 @@ async function loadStats() {
 }
 
 async function loadFeed(append) {
+  const list = document.getElementById('scan-list');
+
+  if (!append) {
+    list.innerHTML = '<li class="empty-state" style="color:var(--text-muted)">Loading scans...</li>';
+  }
+
   try {
     let url = nextCursor
       ? `${API}/feed?cursor=${nextCursor}&limit=20`
       : `${API}/feed?limit=20`;
     if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+    if (activeFilter === 'flagged') url += '&minScore=1';
+    if (activeFilter === 'alerted') url += '&alerted=true';
     const r = await fetch(url);
     const d = await r.json();
-    const list = document.getElementById('scan-list');
 
     if (!append) list.innerHTML = '';
 
     if (d.scans.length === 0 && !append) {
-      list.innerHTML = '<li class="empty-state">Scanning packages... results will appear here shortly.</li>';
+      const msg = searchQuery
+        ? `No results for "${searchQuery}".`
+        : 'Scanning packages... results will appear here shortly.';
+      list.innerHTML = `<li class="empty-state">${msg}</li>`;
       return;
     }
 
     d.scans.forEach(s => list.appendChild(renderScan(s)));
     nextCursor = d.nextCursor;
     document.getElementById('load-more').style.display = nextCursor ? 'block' : 'none';
-  } catch {}
+  } catch (err) {
+    console.error('Failed to load feed:', err);
+    if (!append) {
+      list.innerHTML = '<li class="empty-state">Failed to load scans. <button onclick="loadFeed(false)" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;font-size:inherit;text-decoration:underline">Retry</button></li>';
+    }
+  }
 }
 
 document.getElementById('load-more').addEventListener('click', () => loadFeed(true));
 
 let searchQuery = '';
+let activeFilter = 'all';
 let searchTimer = null;
 const searchInput = document.getElementById('search-input');
 searchInput.addEventListener('input', (e) => {
@@ -715,6 +767,16 @@ searchInput.addEventListener('input', (e) => {
     nextCursor = null;
     loadFeed(false);
   }, 300);
+});
+
+document.querySelectorAll('.filter-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    nextCursor = null;
+    loadFeed(false);
+  });
 });
 
 loadStats();
