@@ -12,22 +12,27 @@ export async function scanRoutes(app: FastifyInstance) {
     const decoded = decodeURIComponent(packageName);
     const wantsHtml = request.headers.accept?.includes('text/html');
 
-    const scan = await prisma.scan.findFirst({
-      where: { packageName: decoded, version },
-      include: { alerts: true },
-    });
+    try {
+      const scan = await prisma.scan.findFirst({
+        where: { packageName: decoded, version },
+        include: { alerts: true },
+      });
 
-    if (!scan) {
-      if (wantsHtml) {
-        return reply.status(404).type('text/html').send(renderScanNotFoundPage(decoded, version));
+      if (!scan) {
+        if (wantsHtml) {
+          return reply.status(404).type('text/html').send(renderScanNotFoundPage(decoded, version));
+        }
+        return reply.status(404).send({ error: 'Scan not found' });
       }
-      return reply.status(404).send({ error: 'Scan not found' });
-    }
 
-    if (wantsHtml) {
-      return reply.type('text/html').send(renderScanDetailPage(scan));
-    }
+      if (wantsHtml) {
+        return reply.type('text/html').send(renderScanDetailPage(scan));
+      }
 
-    return reply.send(scan);
+      return reply.send(scan);
+    } catch (err) {
+      request.log.error({ err }, 'Scan query failed');
+      return reply.status(500).send({ error: 'Internal server error' });
+    }
   });
 }

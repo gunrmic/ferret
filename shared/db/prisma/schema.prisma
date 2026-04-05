@@ -32,6 +32,8 @@ model Scan {
 
   alerts Alert[]
 
+  @@index([packageName, version])
+  @@index([scannedAt])
   @@map("scans")
 }
 
@@ -44,5 +46,6 @@ model Alert {
 
   scan Scan @relation(fields: [scanId], references: [id])
 
+  @@index([scanId])
   @@map("alerts")
 }

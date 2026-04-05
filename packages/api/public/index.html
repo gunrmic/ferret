@@ -280,6 +280,32 @@
       font-weight: 500;
     }
 
+    /* ---- SEARCH ---- */
+    .search-bar {
+      margin-bottom: 16px;
+    }
+
+    .search-bar input {
+      width: 100%;
+      padding: 10px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .search-bar input:focus {
+      border-color: var(--accent);
+    }
+
+    .search-bar input::placeholder {
+      color: var(--text-muted);
+    }
+
     /* ---- FEED ---- */
     .feed-section { padding-bottom: 64px; }
 
@@ -542,6 +568,9 @@
       <h2>Recent scans</h2>
       <span class="live-badge"><span class="dot"></span> Live</span>
     </div>
+    <div class="search-bar">
+      <input type="text" id="search-input" placeholder="Search packages..." autocomplete="off">
+    </div>
     <ul class="scan-list" id="scan-list"></ul>
     <button class="load-more" id="load-more" style="display:none">Load more</button>
   </section>
@@ -653,9 +682,10 @@ async function loadStats() {
 
 async function loadFeed(append) {
   try {
-    const url = nextCursor
+    let url = nextCursor
       ? `${API}/feed?cursor=${nextCursor}&limit=20`
       : `${API}/feed?limit=20`;
+    if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
     const r = await fetch(url);
     const d = await r.json();
     const list = document.getElementById('scan-list');
@@ -674,6 +704,18 @@ async function loadFeed(append) {
 }
 
 document.getElementById('load-more').addEventListener('click', () => loadFeed(true));
+
+let searchQuery = '';
+let searchTimer = null;
+const searchInput = document.getElementById('search-input');
+searchInput.addEventListener('input', (e) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    searchQuery = e.target.value.trim();
+    nextCursor = null;
+    loadFeed(false);
+  }, 300);
+});
 
 loadStats();
 loadFeed(false);
