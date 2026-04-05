@@ -2,7 +2,7 @@
 
 Real-time npm supply chain security monitor. Watches the npm registry for new versions of popular packages, diffs the code changes, and flags suspicious behavior — before developers install the update.
 
-**Live:** [ferretwatch.dev](https://ferretwatch.dev) | **Twitter:** [@theferretwatch](https://x.com/theferretwatch)
+**Live:** [ferretwatch.dev](https://ferretwatch.dev) | **Twitter:** [@theferretwatch](https://x.com/theferretwatch) | **API Docs:** [ferretwatch.dev/docs](https://ferretwatch.dev/docs) | **RSS:** [ferretwatch.dev/feed.xml](https://ferretwatch.dev/feed.xml)
 
 ```
 npm registry ──> Watcher ──> Redis Queue ──> Scanner ──> Postgres ──> API
@@ -19,7 +19,7 @@ npm registry ──> Watcher ──> Redis Queue ──> Scanner ──> Postgre
 4. Changed files are parsed into ASTs using **Babel** and analyzed for known attack patterns
 5. A **risk score** (0–100) is computed. High-risk scans trigger alerts
 6. **Alerter** auto-posts to Twitter/X when suspicious changes are detected
-7. Results are available via the **API** and **live dashboard** at [ferretwatch.dev](https://ferretwatch.dev)
+7. Results are available via the **API**, **live dashboard**, and **Atom feed**
 
 ## Detection Engine
 
@@ -41,6 +41,7 @@ These detect suspicious **combinations** of APIs within the same file — indivi
 | Pattern | Based On | Detects |
 |---------|----------|---------|
 | Credential file read + network request | eslint-scope | Reading `.npmrc`/`.env`/`.ssh` and exfiltrating via HTTP |
+| `path.join()` with credential paths + network | eslint-scope | Computed credential path access (e.g., `path.join(home, '.npmrc')`) |
 | `JSON.stringify(process.env)` + network | crossenv | Serializing all env vars and sending them out |
 | `child_process` + shell download (`curl\|bash`) | ua-parser-js, coa | Install-time remote code execution |
 | `crypto.createDecipher` + `eval`/`module._compile` | event-stream | Decrypting and executing hidden payloads |
@@ -48,9 +49,26 @@ These detect suspicious **combinations** of APIs within the same file — indivi
 | `process.platform` switch + `child_process` | ua-parser-js, coa | Platform-specific malware delivery |
 | Recursive directory walk + `fs.writeFile` | node-ipc | Destructive file overwrite (protestware) |
 | IP geolocation API + destructive action | node-ipc | Geo-targeted attacks |
-| New `preinstall`/`postinstall` lifecycle script | nearly all attacks | #1 attack vector in npm supply chain |
 
-Safe lifecycle scripts are whitelisted: `node-gyp-build`, `prebuild-install`, `node-pre-gyp`, `husky`, `patch-package`.
+### Lifecycle Script Detection
+
+New or modified lifecycle scripts in `package.json` are flagged — these are the #1 attack vector in npm supply chain attacks.
+
+**Monitored scripts:** `preinstall`, `install`, `postinstall`, `prepare`, `prepack`, `postpack`, `prepublishOnly`
+
+Safe patterns are whitelisted: `node-gyp-build`, `prebuild-install`, `node-pre-gyp`, `husky`, `patch-package`.
+
+### Destructured Import Detection
+
+Detects dangerous API usage even through destructured requires:
+
+```javascript
+// Both patterns are caught:
+const cp = require('child_process'); cp.exec(cmd);
+const { exec } = require('child_process'); exec(cmd);
+```
+
+Applies to both `child_process` and `fs` write methods.
 
 ### Noise Reduction
 
@@ -61,6 +79,28 @@ To minimize false positives, the scanner:
 - Skips minified files (`.min.js`, `-min.js`, bundled files)
 - Skips files with lines > 5000 chars (minified content detection)
 - Skips `.d.ts` type declaration files
+
+## Dashboard Features
+
+- **Package search** with debounced input
+- **Filter pills**: All / Flagged / Alerted
+- **Scan detail pages** with risk score, detection flags, alert history, and print support
+- **Package history** — view all scans for a specific package over time
+- **Atom/RSS feed** at `/feed.xml` for flagged scans
+
+## API
+
+Full documentation at [ferretwatch.dev/docs](https://ferretwatch.dev/docs).
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /feed` | Paginated feed of recent scans (supports `?search=`, `?minScore=`, `?alerted=`) |
+| `GET /scan/:package` | Scan history for a package |
+| `GET /scan/:package/:version` | Detailed scan results (HTML for browsers, JSON for API clients) |
+| `GET /stats` | Dashboard statistics |
+| `GET /feed.xml` | Atom feed of flagged scans |
+| `GET /docs` | API documentation |
+| `GET /healthz` | Health check |
 
 ## Project Structure
 
@@ -93,7 +133,7 @@ ferret/
 | AST Parsing | @babel/parser + @babel/traverse |
 | Alerting | Twitter API v2 (twitter-api-v2) |
 | Validation | Zod |
-| Logging | Pino (structured JSON) |
+| Logging | Pino (structured JSON with ISO timestamps) |
 | Deployment | Railway |
 
 ## Getting Started
@@ -147,6 +187,8 @@ pnpm dev:alerter
 | API | http://localhost:3003/healthz |
 | Alerter | http://localhost:3004 |
 
+Health checks verify Redis and Postgres connectivity — they return 503 when dependencies are down.
+
 ## Configuration
 
 All configuration is via environment variables (validated with Zod at startup):
@@ -160,6 +202,7 @@ All configuration is via environment variables (validated with Zod at startup):
 | `SCAN_INTERVAL_MINUTES` | `5` | Poll interval for new versions |
 | `SCANNER_CONCURRENCY` | `3` | Concurrent scan jobs |
 | `PORT` | `3003` | API server port |
+| `CORS_ORIGIN` | `http://localhost:3003` | Allowed CORS origin |
 | `TWITTER_ENABLED` | `false` | Enable Twitter posting |
 | `TWITTER_API_KEY` | — | Twitter API key |
 | `TWITTER_API_SECRET` | — | Twitter API secret |
@@ -179,6 +222,16 @@ Deployed on [Railway](https://railway.app) with 6 services:
 - **Alerter** — posts to Twitter/X
 
 Each service uses the same multi-stage Dockerfile with a different start command.
+
+## Reliability
+
+- **Database indexes** on Scan(packageName, version), Scan(scannedAt), Alert(scanId)
+- **Error boundaries** — all API routes wrapped in try-catch
+- **Real health checks** — ping Redis + Postgres, return 503 when down
+- **Graceful shutdown** with 30s timeout across all services
+- **Queue backpressure** — watcher skips poll cycles when scan queue is backed up
+- **DLQ monitoring** — scanner and alerter log failed job counts every 5 minutes
+- **Twitter credential validation** on alerter startup
 
 ## License
 
