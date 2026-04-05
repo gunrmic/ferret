@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '@ferret/db';
+import { renderScanDetailPage, renderScanNotFoundPage } from '../views/scan-detail.js';
 
 export async function scanRoutes(app: FastifyInstance) {
   app.get('/scan/:package/:version', async (request, reply) => {
@@ -9,6 +10,7 @@ export async function scanRoutes(app: FastifyInstance) {
     };
 
     const decoded = decodeURIComponent(packageName);
+    const wantsHtml = request.headers.accept?.includes('text/html');
 
     const scan = await prisma.scan.findFirst({
       where: { packageName: decoded, version },
@@ -16,7 +18,14 @@ export async function scanRoutes(app: FastifyInstance) {
     });
 
     if (!scan) {
+      if (wantsHtml) {
+        return reply.status(404).type('text/html').send(renderScanNotFoundPage(decoded, version));
+      }
       return reply.status(404).send({ error: 'Scan not found' });
+    }
+
+    if (wantsHtml) {
+      return reply.type('text/html').send(renderScanDetailPage(scan));
     }
 
     return reply.send(scan);
