@@ -2,12 +2,11 @@ import { Worker, type Job } from 'bullmq';
 import type { AlertJobPayload } from '@ferret/types';
 import { ALERT_QUEUE_NAME, type Redis } from '@ferret/queue';
 import { prisma } from '@ferret/db';
-import type { TwitterApi } from 'twitter-api-v2';
-import { formatTweet, postTweet } from './twitter.js';
+import { formatAlertContent } from './format.js';
 import type { AlerterConfig } from './config.js';
 import { logger } from './logger.js';
 
-function createProcessor(config: AlerterConfig, twitterClient: TwitterApi | null) {
+function createProcessor(config: AlerterConfig) {
   return async function processAlertJob(job: Job<AlertJobPayload>): Promise<void> {
     const { scanId, packageName, version, riskScore } = job.data;
     const log = logger.child({ scanId, packageName, version, jobId: job.id });
@@ -20,42 +19,32 @@ function createProcessor(config: AlerterConfig, twitterClient: TwitterApi | null
       data: { alerted: true },
     });
 
-    // Format tweet
-    const tweetText = formatTweet(job.data, config.SITE_URL);
-
-    // Post tweet if enabled
-    let tweetId: string | null = null;
-    if (config.TWITTER_ENABLED && twitterClient) {
-      tweetId = await postTweet(twitterClient, tweetText);
-      log.info({ tweetId }, 'Tweet posted');
-    } else {
-      log.info('Twitter disabled, skipping tweet');
-    }
+    // Format alert content
+    const content = formatAlertContent(job.data, config.SITE_URL);
 
     // Create alert record
     await prisma.alert.create({
       data: {
         scanId,
-        alertType: 'twitter',
-        content: tweetText,
+        alertType: 'site',
+        content,
       },
     });
 
-    log.info({ scanId, tweetId }, 'Alert processed');
+    log.info({ scanId }, 'Alert created');
   };
 }
 
 export function createAlertWorker(
   connection: Redis,
   config: AlerterConfig,
-  twitterClient: TwitterApi | null,
 ): Worker<AlertJobPayload> {
   const worker = new Worker<AlertJobPayload>(
     ALERT_QUEUE_NAME,
-    createProcessor(config, twitterClient),
+    createProcessor(config),
     {
       connection,
-      concurrency: 1, // Sequential to avoid Twitter rate limits
+      concurrency: 1,
     },
   );
 

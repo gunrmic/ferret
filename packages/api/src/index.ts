@@ -13,6 +13,7 @@ import { feedRoutes } from './routes/feed.js';
 import { scanRoutes } from './routes/scan.js';
 import { statsRoutes } from './routes/stats.js';
 import { rssRoutes } from './routes/rss.js';
+import { alertsRoutes } from './routes/alerts.js';
 import { renderDocsPage } from './views/docs.js';
 import { renderNotFoundPage } from './views/not-found.js';
 import { logger } from './logger.js';
@@ -65,6 +66,7 @@ await app.register(feedRoutes);
 await app.register(scanRoutes);
 await app.register(statsRoutes);
 await app.register(rssRoutes);
+await app.register(alertsRoutes);
 
 app.setNotFoundHandler((request, reply) => {
   const wantsHtml = (request.headers.accept ?? '')

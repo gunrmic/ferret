@@ -507,9 +507,9 @@ export function renderScanDetailPage(scan: ScanData): string {
       <span>Ferret Watch</span>
     </a>
     <div class="nav-links">
-      <a href="https://x.com/theferretwatch" target="_blank">Twitter</a>
+      <a href="/alerts">Alerts</a>
       <a href="https://github.com/gunrmic/ferret" target="_blank">GitHub</a>
-      <a href="/feed">API</a>
+      <a href="/docs">API Docs</a>
     </div>
   </nav>
 
@@ -705,9 +705,9 @@ export function renderScanNotFoundPage(packageName: string, version: string): st
       <span>Ferret Watch</span>
     </a>
     <div class="nav-links">
-      <a href="https://x.com/theferretwatch" target="_blank">Twitter</a>
+      <a href="/alerts">Alerts</a>
       <a href="https://github.com/gunrmic/ferret" target="_blank">GitHub</a>
-      <a href="/feed">API</a>
+      <a href="/docs">API Docs</a>
     </div>
   </nav>
 

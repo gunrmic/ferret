@@ -290,8 +290,9 @@ export function renderDocsPage(): string {
       <span>Ferret Watch</span>
     </a>
     <div class="nav-links">
-      <a href="/">Dashboard</a>
+      <a href="/alerts">Alerts</a>
       <a href="https://github.com/gunrmic/ferret" target="_blank">GitHub</a>
+      <a href="/docs">API Docs</a>
     </div>
   </nav>
 

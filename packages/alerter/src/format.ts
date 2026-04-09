@@ -1,17 +1,6 @@
-import { TwitterApi } from 'twitter-api-v2';
 import type { AlertJobPayload } from '@ferret/types';
-import type { AlerterConfig } from './config.js';
 
-export function createTwitterClient(config: AlerterConfig): TwitterApi {
-  return new TwitterApi({
-    appKey: config.TWITTER_API_KEY,
-    appSecret: config.TWITTER_API_SECRET,
-    accessToken: config.TWITTER_ACCESS_TOKEN,
-    accessSecret: config.TWITTER_ACCESS_SECRET,
-  });
-}
-
-export function formatTweet(payload: AlertJobPayload, siteUrl: string): string {
+export function formatAlertContent(payload: AlertJobPayload, siteUrl: string): string {
   const { packageName, version, riskScore, staticFlags, weeklyDownloads, detectedAt } = payload;
 
   const uniqueRules = [...new Set(staticFlags.map((f) => f.rule))];
@@ -30,20 +19,12 @@ export function formatTweet(payload: AlertJobPayload, siteUrl: string): string {
   const encodedPkg = encodeURIComponent(packageName);
 
   return [
-    `\u{1F6A8} ${packageName} v${version} \u2014 suspicious code detected (score: ${riskScore}/100)`,
+    `${packageName} v${version} — suspicious code detected (score: ${riskScore}/100)`,
     '',
     `Flagged: ${topFlags}`,
     '',
-    `Published ${timeAgo} \u00B7 ${downloads} weekly downloads`,
+    `Published ${timeAgo} · ${downloads} weekly downloads`,
     '',
     `${siteUrl}/scan/${encodedPkg}/${version}`,
   ].join('\n');
-}
-
-export async function postTweet(
-  client: TwitterApi,
-  text: string,
-): Promise<string> {
-  const result = await client.v2.tweet(text);
-  return result.data.id;
 }

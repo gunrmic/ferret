@@ -9,7 +9,6 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "twitter-api-v2": "^1.17.0",
     "bullmq": "^5.0.0",
     "ioredis": "^5.0.0",
     "pino": "^9.0.0",

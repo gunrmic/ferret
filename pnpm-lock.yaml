@@ -38,9 +38,6 @@ importers:
       pino:
         specifier: ^9.0.0
         version: 9.14.0
-      twitter-api-v2:
-        specifier: ^1.17.0
-        version: 1.29.0
       zod:
         specifier: ^3.23.0
         version: 3.25.76
@@ -989,9 +986,6 @@ packages:
     engines: {node: '>=18.0.0'}
     hasBin: true
 
-  twitter-api-v2@1.29.0:
-    resolution: {integrity: sha512-v473q5bwme4N+DWSg6qY+JCvfg1nSJRWwui3HUALafxfqCvVkKiYmS/5x/pVeJwTmyeBxexMbzHwnzrH4h6oYQ==}
-
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
@@ -1793,8 +1787,6 @@ snapshots:
       get-tsconfig: 4.13.7
     optionalDependencies:
       fsevents: 2.3.3
-
-  twitter-api-v2@1.29.0: {}
 
   typescript@5.9.3: {}
 
