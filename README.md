@@ -2,13 +2,13 @@
 
 Real-time npm supply chain security monitor. Watches the npm registry for new versions of popular packages, diffs the code changes, and flags suspicious behavior — before developers install the update.
 
-**Live:** [ferretwatch.dev](https://ferretwatch.dev) | **Twitter:** [@theferretwatch](https://x.com/theferretwatch) | **API Docs:** [ferretwatch.dev/docs](https://ferretwatch.dev/docs) | **RSS:** [ferretwatch.dev/feed.xml](https://ferretwatch.dev/feed.xml)
+**Live:** [ferretwatch.dev](https://ferretwatch.dev) | **Alerts:** [ferretwatch.dev/alerts](https://ferretwatch.dev/alerts) | **API Docs:** [ferretwatch.dev/docs](https://ferretwatch.dev/docs) | **RSS:** [ferretwatch.dev/feed.xml](https://ferretwatch.dev/feed.xml)
 
 ```
 npm registry ──> Watcher ──> Redis Queue ──> Scanner ──> Postgres ──> API
                 (polls)       (BullMQ)      (diff+AST)   (results)   (feed)
                                                  │
-                                                 └──> Alerter ──> Twitter/X
+                                                 └──> Alerter ──> /alerts page
 ```
 
 ## How It Works
@@ -18,8 +18,8 @@ npm registry ──> Watcher ──> Redis Queue ──> Scanner ──> Postgre
 3. **Scanner** downloads both old and new tarballs, extracts, and diffs the source files
 4. Changed files are parsed into ASTs using **Babel** and analyzed for known attack patterns
 5. A **risk score** (0–100) is computed. High-risk scans trigger alerts
-6. **Alerter** auto-posts to Twitter/X when suspicious changes are detected
-7. Results are available via the **API**, **live dashboard**, and **Atom feed**
+6. **Alerter** creates an alert record when suspicious changes are detected
+7. Results are available via the **API**, **live dashboard**, **alerts page**, and **Atom feed**
 
 ## Detection Engine
 
@@ -86,6 +86,7 @@ To minimize false positives, the scanner:
 - **Filter pills**: All / Flagged / Alerted
 - **Scan detail pages** with risk score, detection flags, alert history, and print support
 - **Package history** — view all scans for a specific package over time
+- **Alerts timeline** at `/alerts` — blog-style page of all security alerts
 - **Atom/RSS feed** at `/feed.xml` for flagged scans
 
 ## API
@@ -94,6 +95,7 @@ Full documentation at [ferretwatch.dev/docs](https://ferretwatch.dev/docs).
 
 | Endpoint | Description |
 |----------|-------------|
+| `GET /alerts` | Security alerts timeline (HTML for browsers, JSON for API clients) |
 | `GET /feed` | Paginated feed of recent scans (supports `?search=`, `?minScore=`, `?alerted=`) |
 | `GET /scan/:package` | Scan history for a package |
 | `GET /scan/:package/:version` | Detailed scan results (HTML for browsers, JSON for API clients) |
@@ -110,7 +112,7 @@ ferret/
 │   ├── scanner/          # BullMQ worker: download, diff, analyze
 │   ├── watcher/          # npm registry poller + package seeding
 │   ├── api/              # Fastify API + landing page (ferretwatch.dev)
-│   └── alerter/          # Twitter/X auto-posting on high-risk scans
+│   └── alerter/          # Creates alert records for high-risk scans
 ├── shared/
 │   ├── db/               # Prisma schema + client
 │   ├── queue/            # BullMQ queues (scan + alert) + Redis connection
@@ -131,7 +133,7 @@ ferret/
 | Database | PostgreSQL + Prisma |
 | API | Fastify |
 | AST Parsing | @babel/parser + @babel/traverse |
-| Alerting | Twitter API v2 (twitter-api-v2) |
+| Alerting | Built-in /alerts page + Atom feed |
 | Validation | Zod |
 | Logging | Pino (structured JSON with ISO timestamps) |
 | Deployment | Railway |
@@ -174,7 +176,7 @@ pnpm dev:watcher
 # Terminal 3 — API + dashboard
 pnpm dev:api
 
-# Terminal 4 — alerter (set TWITTER_ENABLED=true with creds)
+# Terminal 4 — alerter
 pnpm dev:alerter
 ```
 
@@ -203,12 +205,7 @@ All configuration is via environment variables (validated with Zod at startup):
 | `SCANNER_CONCURRENCY` | `3` | Concurrent scan jobs |
 | `PORT` | `3003` | API server port |
 | `CORS_ORIGIN` | `http://localhost:3003` | Allowed CORS origin |
-| `TWITTER_ENABLED` | `false` | Enable Twitter posting |
-| `TWITTER_API_KEY` | — | Twitter API key |
-| `TWITTER_API_SECRET` | — | Twitter API secret |
-| `TWITTER_ACCESS_TOKEN` | — | Twitter access token |
-| `TWITTER_ACCESS_SECRET` | — | Twitter access secret |
-| `SITE_URL` | `https://ferretwatch.dev` | Base URL for tweet links |
+| `SITE_URL` | `https://ferretwatch.dev` | Base URL for alert links |
 
 ## Deployment
 
@@ -219,7 +216,7 @@ Deployed on [Railway](https://railway.app) with 6 services:
 - **Watcher** — polls npm registry
 - **Scanner** — processes scan jobs
 - **API** — public feed + dashboard at ferretwatch.dev
-- **Alerter** — posts to Twitter/X
+- **Alerter** — creates alert records for high-risk scans
 
 Each service uses the same multi-stage Dockerfile with a different start command.
 
@@ -231,7 +228,7 @@ Each service uses the same multi-stage Dockerfile with a different start command
 - **Graceful shutdown** with 30s timeout across all services
 - **Queue backpressure** — watcher skips poll cycles when scan queue is backed up
 - **DLQ monitoring** — scanner and alerter log failed job counts every 5 minutes
-- **Twitter credential validation** on alerter startup
+- **Tarball SSRF protection** — validate URL host, block redirects, 256MB size limit, symlink filtering
 
 ## License
 
